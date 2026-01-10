@@ -38,6 +38,21 @@ router.post(
     authController.login
 );
 
+// Register Employee
+router.post(
+    '/add-employee',
+    [
+        auth,
+        check('name', 'Name is required').not().isEmpty(),
+        check('email', 'Please include a valid email').isEmail(),
+        check('password', 'Please enter a password with 6 or more characters').isLength({ min: 6 }),
+    ],
+    authController.addEmployee
+);
+
+// Get Employees
+router.get('/employees', auth, authController.getEmployees);
+
 // Get User
 router.get('/me', auth, authController.getMe);
 

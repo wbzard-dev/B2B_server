@@ -142,6 +142,30 @@ exports.updateOrderStatus = async (req, res) => {
             order.invoiceNumber = `INV-${Date.now()}`;
         }
 
+        // IF DELIVERED, UPDATE DISTRIBUTOR INVENTORY
+        if (status === 'Delivered') {
+            const DistributorInventory = require('../models/DistributorInventory');
+            for (const item of order.items) {
+                let invItem = await DistributorInventory.findOne({
+                    distributorId: order.distributorId,
+                    productId: item.product
+                });
+
+                if (invItem) {
+                    invItem.quantity += item.quantity;
+                    invItem.lastUpdated = Date.now();
+                    await invItem.save();
+                } else {
+                    invItem = new DistributorInventory({
+                        distributorId: order.distributorId,
+                        productId: item.product,
+                        quantity: item.quantity
+                    });
+                    await invItem.save();
+                }
+            }
+        }
+
         await order.save();
         res.json(order);
     } catch (err) {
@@ -201,7 +225,6 @@ exports.verifyPayment = async (req, res) => {
         }
 
         order.paymentStatus = 'Paid';
-        order.status = 'Confirmed';
         await order.save();
         res.json(order);
     } catch (err) {

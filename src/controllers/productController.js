@@ -78,29 +78,22 @@ exports.getProductById = async (req, res) => {
 
 // @route   PUT api/products/:id
 // @desc    Update a product (Company only)
-// @access  Private (Company Admin)
+// @access  Private (Company Admin/User)
 exports.updateProduct = async (req, res) => {
     // Check role
-    if (req.user.role !== 'company_admin') {
+    if (req.user.role !== 'company_admin' && req.user.role !== 'company_user') {
         return res.status(403).json({ msg: 'Not authorized' });
     }
 
-    const { name, sku, description, price, unit, category, image, stock } = req.body;
+    const { name, sku, description, price, unit, category, image, stock, reason } = req.body;
 
-    // Build product object
-    const productFields = {};
-    if (name) productFields.name = name;
-    if (sku) productFields.sku = sku;
-    if (description) productFields.description = description;
-    if (price) productFields.price = price;
-    if (unit) productFields.unit = unit;
-    if (category) productFields.category = category;
-    if (image) productFields.image = image;
-    if (stock !== undefined) productFields.stock = stock;
+    // Restricted update for company_user: can only update stock
+    if (req.user.role === 'company_user' && (name || sku || description || price || unit || category || image)) {
+        return res.status(403).json({ msg: 'Employees can only update stock' });
+    }
 
     try {
         let product = await Product.findById(req.params.id);
-
         if (!product) return res.status(404).json({ msg: 'Product not found' });
 
         // Make sure user owns product
@@ -108,8 +101,66 @@ exports.updateProduct = async (req, res) => {
             return res.status(401).json({ msg: 'Not authorized' });
         }
 
-        product = await Product.findByIdAndUpdate(req.params.id, { $set: productFields }, { new: true });
+        const oldStock = product.stock;
+        let stockChange = 0;
+
+        // Build product object
+        if (name && req.user.role === 'company_admin') product.name = name;
+        if (sku && req.user.role === 'company_admin') product.sku = sku;
+        if (description && req.user.role === 'company_admin') product.description = description;
+        if (price && req.user.role === 'company_admin') product.price = price;
+        if (unit && req.user.role === 'company_admin') product.unit = unit;
+        if (category && req.user.role === 'company_admin') product.category = category;
+        if (image && req.user.role === 'company_admin') product.image = image;
+
+        // stockAdjustment handles increments (+50)
+        // stock handles absolute reset (from admin edit)
+        if (stock !== undefined) {
+            stockChange = stock - oldStock;
+            product.stock = stock;
+        } else if (req.body.stockAdjustment !== undefined) {
+            stockChange = parseInt(req.body.stockAdjustment);
+            product.stock += stockChange;
+        }
+
+        if (stockChange !== 0 || stock !== undefined) {
+            // Log the stock change
+            const ProductStockLog = require('../models/ProductStockLog');
+            const logEntry = new ProductStockLog({
+                productId: product._id,
+                userId: req.user.id,
+                companyId: req.user.entityId,
+                oldStock,
+                newStock: product.stock,
+                change: stockChange,
+                reason: reason || (req.user.role === 'company_user' ? 'Employee Stock Adjustment' : 'Admin Stock Adjustment')
+            });
+            await logEntry.save();
+        }
+
+        await product.save();
         res.json(product);
+    } catch (err) {
+        console.error(err.message);
+        res.status(500).send('Server error');
+    }
+};
+
+// @route   GET api/products/:id/logs
+// @desc    Get stock history logs for a product
+// @access  Private (Company)
+exports.getProductLogs = async (req, res) => {
+    if (req.user.entityType !== 'Company') {
+        return res.status(403).json({ msg: 'Not authorized' });
+    }
+
+    try {
+        const ProductStockLog = require('../models/ProductStockLog');
+        const logs = await ProductStockLog.find({ productId: req.params.id })
+            .populate('userId', 'name')
+            .populate('productId', 'name sku')
+            .sort({ createdAt: -1 });
+        res.json(logs);
     } catch (err) {
         console.error(err.message);
         res.status(500).send('Server error');

@@ -36,4 +36,7 @@ router.get('/:id', auth, productController.getProductById);
 // @access  Private (Company)
 router.put('/:id', auth, productController.updateProduct);
 
+// Get product logs
+router.get('/:id/logs', auth, productController.getProductLogs);
+
 module.exports = router;

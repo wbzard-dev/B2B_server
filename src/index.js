@@ -18,6 +18,8 @@ app.use("/api/auth", require("./routes/authRoutes"));
 app.use("/api/products", require("./routes/productRoutes"));
 app.use("/api/orders", require("./routes/orderRoutes"));
 app.use("/api/distributors", require("./routes/distributorRoutes"));
+app.use("/api/distributor", require("./routes/distributorInventoryRoutes"));
+app.use('/api/analytics', require('./routes/analyticsRoutes'));
 
 // Basic Route
 app.get("/", (req, res) => {

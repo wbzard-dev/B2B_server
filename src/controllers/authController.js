@@ -138,6 +138,60 @@ exports.login = async (req, res) => {
     }
 };
 
+// @route   POST api/auth/add-employee
+// @desc    Company Admin adds a new employee (Company User)
+// @access  Private (Company Admin)
+exports.addEmployee = async (req, res) => {
+    if (req.user.role !== 'company_admin') {
+        return res.status(403).json({ msg: 'Only company admins can add employees' });
+    }
+
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
+
+    const { name, email, password } = req.body;
+
+    try {
+        let user = await User.findOne({ email });
+        if (user) return res.status(400).json({ msg: 'User already exists' });
+
+        const salt = await bcrypt.genSalt(10);
+        const hashedPassword = await bcrypt.hash(password, salt);
+
+        user = new User({
+            name,
+            email,
+            password: hashedPassword,
+            role: 'company_user',
+            entityId: req.user.entityId,
+            entityType: 'Company',
+        });
+
+        await user.save();
+        res.json({ msg: 'Employee added successfully', user: { id: user.id, name: user.name, email: user.email, role: user.role } });
+    } catch (err) {
+        console.error(err.message);
+        res.status(500).send('Server error');
+    }
+};
+
+// @route   GET api/auth/employees
+// @desc    Get all employees for a company
+// @access  Private (Company Admin)
+exports.getEmployees = async (req, res) => {
+    if (req.user.role !== 'company_admin') {
+        return res.status(403).json({ msg: 'Not authorized' });
+    }
+
+    try {
+        const employees = await User.find({ entityId: req.user.entityId, role: 'company_user' }).select('-password');
+        res.json(employees);
+    } catch (err) {
+        console.error(err.message);
+        res.status(500).send('Server error');
+    }
+};
+
 // @route   GET api/auth/me
 // @desc    Get current logged in user
 // @access  Private
