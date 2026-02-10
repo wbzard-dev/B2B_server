@@ -67,7 +67,7 @@ exports.reportSales = async (req, res) => {
                 quantity: item.quantity,
                 price: item.price,
                 total: itemTotal,
-                shopName: product.shopName,
+                shopName: item.shopName,
             });
 
             // Update inventory
