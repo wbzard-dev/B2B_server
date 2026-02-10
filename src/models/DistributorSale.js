@@ -1,43 +1,51 @@
-const mongoose = require('mongoose');
+const mongoose = require("mongoose");
 
-const distributorSaleSchema = new mongoose.Schema({
-    distributorId: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'Distributor',
-        required: true,
-    },
-    date: {
-        type: Date,
-        default: Date.now,
-        required: true,
-    },
-    items: [{
-        productId: {
+const distributorSaleSchema = new mongoose.Schema(
+    {
+        distributorId: {
             type: mongoose.Schema.Types.ObjectId,
-            ref: 'Product',
+            ref: "Distributor",
             required: true,
         },
-        name: String,
-        sku: String,
-        quantity: {
+        date: {
+            type: Date,
+            default: Date.now,
+            required: true,
+        },
+        items: [
+            {
+                productId: {
+                    type: mongoose.Schema.Types.ObjectId,
+                    ref: "Product",
+                    required: true,
+                },
+                name: String,
+                sku: String,
+                quantity: {
+                    type: Number,
+                    required: true,
+                    min: 1,
+                },
+                price: {
+                    type: Number,
+                    required: true,
+                },
+                total: {
+                    type: Number,
+                    required: true,
+                },
+                shopName: {
+                    type: String,
+                },
+            },
+        ],
+        totalAmount: {
             type: Number,
             required: true,
-            min: 1,
+            default: 0,
         },
-        price: {
-            type: Number,
-            required: true,
-        },
-        total: {
-            type: Number,
-            required: true,
-        },
-    }],
-    totalAmount: {
-        type: Number,
-        required: true,
-        default: 0,
     },
-}, { timestamps: true });
+    { timestamps: true },
+);
 
-module.exports = mongoose.model('DistributorSale', distributorSaleSchema);
+module.exports = mongoose.model("DistributorSale", distributorSaleSchema);
